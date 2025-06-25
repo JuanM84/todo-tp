@@ -3,10 +3,11 @@ package com.frp.utn.todo_tp.view;
 import com.vaadin.flow.router.Route;
 import com.frp.utn.todo_tp.model.Task;
 import com.frp.utn.todo_tp.repository.TaskRepository;
+import com.frp.utn.todo_tp.service.TaskService;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.checkbox.Checkbox;
-import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H3;
@@ -22,15 +23,15 @@ import com.vaadin.flow.component.textfield.TextField;
 @Route("")
 public class MainView extends VerticalLayout{
     
-    private final TaskRepository taskRepository;
+    private final TaskService taskService;
 
     private final Grid<Task> grid = new Grid<>(Task.class);
     private final TextField descriptionField = new TextField("Nueva Tarea");
     private final TextField searchField = new TextField("Buscar...");
     private final Button addButton = new Button("Agregar");
 
-    public MainView(TaskRepository taskRepository) {
-        this.taskRepository = taskRepository;
+    public MainView(TaskService taskService) {
+        this.taskService = taskService;
 
         // TITULO
         H1 titulo = new H1("Lista de Tareas");
@@ -72,7 +73,7 @@ public class MainView extends VerticalLayout{
             Checkbox checkbox = new Checkbox(task.isDone());
             checkbox.addValueChangeListener(event -> {
                 task.setDone(event.getValue());
-                taskRepository.save(task);
+                taskService.save(task);
                 refreshGrid();
             });
             return checkbox;
@@ -90,21 +91,16 @@ public class MainView extends VerticalLayout{
 
     }
     private void deleteTask(Task task){
-        Dialog confirmDialog = new Dialog();
-        confirmDialog.add(new H3("Eliminar tarea"));
-        confirmDialog.add(new Paragraph("¿Estas seguro de que quieres borrar esta tarea?"));
-
-        Button confirmButton = new Button("Eliminar", e -> {
-            taskRepository.delete(task);
+        ConfirmDialog confirmDialog = new ConfirmDialog();
+        confirmDialog.setHeader(new H3(task.getDescription()));
+        confirmDialog.setText(new Paragraph("¿Estas seguro de que quieres borrar esta tarea?"));
+        confirmDialog.setCancelable(true);
+        confirmDialog.setConfirmText("Eliminar");
+        confirmDialog.setCancelText("Cancelar");
+        confirmDialog.addConfirmListener(event -> {
+            taskService.delete(task.getId());
             refreshGrid();
-            confirmDialog.close();
         });
-        confirmButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
-
-        Button cancelButton = new Button("Cancelar", e -> confirmDialog.close());
-
-        HorizontalLayout buttons = new HorizontalLayout(confirmButton, cancelButton);
-        confirmDialog.add(buttons);
         confirmDialog.open();
 
     }
@@ -114,7 +110,7 @@ public class MainView extends VerticalLayout{
             String description = descriptionField.getValue();
             if (description != null && !description.isEmpty()) {
                 Task newTask = new Task(description, false);
-                taskRepository.save(newTask);
+                taskService.save(newTask);
                 descriptionField.clear();
                 refreshGrid();
             }
@@ -128,7 +124,7 @@ public class MainView extends VerticalLayout{
                 refreshGrid();
             }else{
                 grid.setItems(
-                    taskRepository.findAll().stream()
+                    taskService.findAll().stream()
                     .filter(task -> task.getDescription().toLowerCase().contains(filter.toLowerCase())).toList()
                 );
             }
@@ -136,6 +132,6 @@ public class MainView extends VerticalLayout{
     }
 
     private void refreshGrid(){
-        grid.setItems(taskRepository.findAll());
+        grid.setItems(taskService.findAll());
     }
 }
